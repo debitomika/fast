@@ -152,3 +152,14 @@ div.busy {
   padding-right: 30px;
   border-radius: 5px;
 }
+
+div.warna {
+  background-color: blue;
+}
+
+.shiny-progress {
+  top: 50% !important;
+  left: 50% !important;
+  margin-top: -100px !important;
+  margin-left: -250px !important;
+}

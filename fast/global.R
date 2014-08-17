@@ -14,8 +14,8 @@ if(file.exists("/Users/vnijs/Dropbox/GitHub/radiant")) {
 
 testingFast <- FALSE
 dataTmpTbl <- data.frame()
-
-options(digits = 3)
+# membuat koneksi ke database 
+options(digits = 10)
 
 # allowing anyfile size when run locally  
 if(Sys.getenv('SHINY_PORT') == "") {
@@ -62,7 +62,8 @@ if(Sys.getenv('SHINY_PORT') == "") {
 
 libs <- c("shiny", "knitr", "R.utils", "markdown", "shinyAce", "car", "MASS", "gridExtra", "psych", 
           "plyr", "dplyr","reshape2", "vegan", "lubridate", "wordcloud", "AlgDesign", "ggplot2", "forecast",
-          "datasets", "censReg", "GGally", "nortest", "tseries", "R2wd", "xtable", "shinyBS", "googleVis")
+          "datasets", "censReg", "GGally", "nortest", "tseries", "R2wd", "xtable", "shinyBS", "googleVis", "clValid", "R2wd", "cluster",
+          "gdata", "foreign", "Hmisc", "WriteXLS", "shinyIncubator", "zoo", "rmarkdown","corrplot","ridge", "RMySQL")
 
 # would prefer to use importFrom but ...
 # detach("package:R.utils", unload=TRUE)
@@ -71,9 +72,6 @@ libs <- c("shiny", "knitr", "R.utils", "markdown", "shinyAce", "car", "MASS", "g
 
 # pander for pretty printing of data and analysis output
 # panderOptions('digits',3)
-
-
-
 
 
 

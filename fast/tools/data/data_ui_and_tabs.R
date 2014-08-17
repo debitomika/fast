@@ -2,20 +2,30 @@
 # Shiny interface for data functions
 #######################################
 # data ui and tabs
-output$data_ui_and_tabs <- renderUI({
+output$data_ui_and_tabs <- renderUI({  
   list(
-    includeCSS("www/style.css"),
-    tags$head(
-      tags$script(src = "js/jquery-ui.custom.min.js"),
-      tags$script(src = "js/busy.js"),
-      tags$script(src = 'https://c328740.ssl.cf1.rackcdn.com/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML',
-                  type = 'text/javascript')
-    ),
+#     includeCSS("www/style.css"),
+#     tags$head(
+#       tags$script(src = "js/jquery-ui.custom.min.js"),
+#       tags$script(src = "js/busy.js"),
+#       tags$script(src = 'https://c328740.ssl.cf1.rackcdn.com/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML',
+#                   type = 'text/javascript')
+#       #tags$style(type='text/css', '.well {background-color: rgB( 0, 132, 180);}')
+#     ),     
+#     withProgress(session, min=1, max=15, expr={
+#       for(i in 1:10) {
+#         setProgress(message = 'Calculation in progress',
+#                     detail = 'This may take a while...',
+#                     value=i)
+#         print(i)
+#         Sys.sleep(0.1)
+#       }
+#     }),
     
     sidebarLayout(
-      
       sidebarPanel(
         # based on https://groups.google.com/forum/?fromgroups=#!topic/shiny-discuss/PzlSAmAxxwo
+        
         wellPanel(
           uiOutput("uiDatasets")
         ),

@@ -1,0 +1,26 @@
+---
+title: "report"
+author: "Dwiyana"
+date: "Friday, August 15, 2014"
+output: 
+  word_document
+  pdf_document
+  html_document
+---
+
+**CLUSTER ANALYSIS**
+
+Data whis is analyzed with cluster analysis is :
+
+
+```{r}
+data<- upload()
+data
+```
+
+The summary of cluster analysis :
+
+```{r, echo=FALSE}
+report<-clusters()
+summary(report)
+```

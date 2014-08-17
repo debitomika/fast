@@ -6,14 +6,16 @@ output$uiArima_var1 <- renderUI({
               selected = vars[1], multiple = FALSE)
 })
 
+# untuk memindahkan panel kembali ke data setiap berpindah menu
 observe({
   if(!identical(input$nav_fast, "ARIMA")){
-    print(input$nav_fast)
     updateTabsetPanel(session, "arimatab", selected = "datatab")
+    nilaiTabel[["tmp"]] <- data.frame()
+    values$modellist <- NULL
   }
 })
 
-output$uimenu <- renderUI({
+output$uimenu_arima <- renderUI({
   wellPanel(
     HTML(paste("<label><strong>Menu:", "Forecasting","</strong></label>")),
     HTML(paste("<label><strong>Tool:",isolate(input$nav_fast),"</strong></label>")),
@@ -30,7 +32,7 @@ output$autoarima <- renderUI ({
           p("Calculation in progress ..."),
           img(src="ajaxloaderq.gif")
       ),
-      uiOutput("uimenu"),
+      uiOutput("uimenu_arima"),
       wellPanel(
         uiOutput("uiArima_var1")
       ),
@@ -47,24 +49,7 @@ output$autoarima <- renderUI ({
               "Annual" = 1
             ),
             selected = 12),
-          conditon = "input.frequency == 12",
-          numericInput(inputId = "date",label = "Start Years", value = 1990, min = 1900)
-        ),
-        wellPanel(
-          selectInput(
-            inputId = "forecastperiod",
-            label = "Forecast Period",
-            choices = list(
-              "In sample forecast" = 1,
-              "Out of sample forecast" = 2
-            ),
-            selected = 2
-          ),
-          conditionalPanel(
-            condition = "input.forecastperiod == 1",
-            numericInput(inputId = "endYear", label = "Training-set End Year", value = 2012),
-            numericInput(inputId = "endMonth", label = "Training-set End Month ", value = 6)
-          )
+          numericInput(inputId = "date",label = "Start Years", value = 2000, min = 1900)
         )
       ),
       conditionalPanel(
@@ -141,11 +126,11 @@ output$autoarima <- renderUI ({
             checkboxInput(
               inputId = "seasonal",
               label = "Seasonal Model",
-              value = TRUE),
+              value = FALSE),
             checkboxInput(
               inputId = "stepwise",
               label = "Use Stepwise Selection",
-              value = TRUE),
+              value = FALSE),
             checkboxInput(
               inputId = "trace",
               label = "Show considered ARIMA models",
@@ -182,8 +167,14 @@ output$autoarima <- renderUI ({
           numericInput(
             inputId = "period",
             label = "Number Of Period",
-            min = 0,
-            value = 10))
+            min = 1,
+            value = 6))
+      ),
+      conditionalPanel(
+        condition = "input.arimatab == 5 && input.forecasttab == 3",
+        wellPanel(
+          numericInput(inputId = "trainobservation", label = "Training-set Observation Size", value = 168, max = 175)
+        )
       ),
       helpAndReport('Regression','regression', inclMD("tools/help/regression.md"))
     ),
@@ -192,17 +183,8 @@ output$autoarima <- renderUI ({
         id = "arimatab",
         tabPanel(
           title = "Data",
-          conditionalPanel(
-            condition = "input.forecastperiod == 2",
-            verbatimTextOutput("tampil_ts")
-          ),
-          conditionalPanel(
-            condition = "input.forecastperiod == 1",
-            helpText(strong("Training Set:")),
-            verbatimTextOutput("trainingSet"),
-            helpText(strong("Test Set:")),
-            verbatimTextOutput("testSet")
-          ),
+          tags$style(type='text/css', '#tampil_ts {background-color: rgB(240,248,255); color: green;}'), 
+          verbatimTextOutput("tampil_ts"),
           value = "datatab"
         ),
         tabPanel(
@@ -216,63 +198,90 @@ output$autoarima <- renderUI ({
             tabPanel(
               title = "Historical Plot",
               withTags(
-                div(
-                  class = "fluid-row",
-                  div(
-                    class = "span5",
-                    selectInput(
-                      inputId = "uniroottest",
-                      label = strong("Unit Root Test"),
-                      choices = c(
-                        "ADF" = "adf",
-                        "KPSS" = "kpss",
-                        "PP" = "pp"
-                      ),
-                      selected = "kpss"),
-                    verbatimTextOutput("textUnitRoot"),
-                    br(),br(),
-                    helpText(
-                      strong("H0:"),
-                      textOutput(outputId = "rooth0"),br(),
-                      strong("H1:"),
-                      textOutput(outputId = "rooth1"),br(),br(),
-                      strong("COMPUTATION:"),br(),
-                      "The computed p-value is:",
-                      textOutput(outputId = "rootpv"),br(),br(),
-                      strong("DECISION"), textOutput(outputId = "rootdc"),br(),br(),
-                      strong("CONCLUSION"), textOutput(outputId = "rootcn")
-                    )
-                  ),
-                  div(
-                    class = "span7",
-                    bsCollapse(multiple = TRUE, open = c("plot1", "plot2"), id = "collapse1",
-                               bsCollapsePanel("Series Plot", plotOutput(outputId = "arimaplot", height = "290px"),
-                                               id = "plot1", value = "test1"),
-                               bsCollapsePanel("Differenced Series Plot", helpText("Apply differencing to see the differenced series plot."),
-                                               plotOutput(
-                                                 outputId = "h.new", height = "290px")
-                                               , id = "plot2", value = "test2")
-                    ))))
+                bsCollapse(multiple = TRUE, open = c("plot1", "plot2"), id = "collapse1",
+                           bsCollapsePanel("Series Plot", plotOutput(outputId = "arimaplot", height = "290px"),
+                                           id = "plot1", value = "test1"),
+                           bsCollapsePanel("Differenced Series Plot", helpText("Apply differencing to see the differenced series plot."),
+                                           plotOutput(
+                                             outputId = "h.new", height = "290px")
+                                           , id = "plot2", value = "test2")
+                )
+              )
+            ),
+            tabPanel(
+              title = "Unit Root Test",
+              withTags(
+                bsCollapse(multiple = TRUE, open = c("uroot"), id = "collapse2",
+                           bsCollapsePanel("", id = "uroot",
+                                           selectInput(
+                                             inputId = "uniroottest",
+                                             label = strong("Please Select Unit Root Test :"),
+                                             choices = c(
+                                               "ADF" = "adf",
+                                               "KPSS" = "kpss",
+                                               "PP" = "pp"
+                                             ),
+                                             selected = "kpss"),
+                                           verbatimTextOutput("textUnitRoot"),
+                                           br(),br(),
+                                           helpText(
+                                             strong("H0:"),
+                                             textOutput(outputId = "rooth0"),br(),
+                                             strong("H1:"),
+                                             textOutput(outputId = "rooth1"),br(),br(),
+                                             strong("COMPUTATION:"),br(),
+                                             "The computed p-value is:",
+                                             textOutput(outputId = "rootpv"),br(),br(),
+                                             strong("DECISION"), textOutput(outputId = "rootdc"),br(),br(),
+                                             strong("CONCLUSION"), textOutput(outputId = "rootcn")
+                                           )
+                           )
+                )
+              )
             ),
             tabPanel(
               title = " ACF",
-              plotOutput(
-                outputId = "acf"),
-              verbatimTextOutput(outputId = "acfval"),
+              bsCollapse(
+                multiple = TRUE, open = c("acfbs", "acfvalbs"), id = "acfcollapse",
+                bsCollapsePanel("ACF Plot", id = "acfbs", plotOutput(outputId = "acf")),
+                bsCollapsePanel("ACF Value", id = "acfvalbs", dataTableOutput(outputId = "acfval"))
+              ),
               value = 1),
             tabPanel(
               title = "PACF",
-              plotOutput(
-                outputId = "pacf"),
-              verbatimTextOutput(outputId = "pacfval"),
+              bsCollapse(multiple = TRUE, open = c("pacfbs", "pacfvalbs"), id = "pacfcollapse",
+                         bsCollapsePanel("PACF Plot", id = "pacfbs", plotOutput(outputId = "pacf")),
+                         bsCollapsePanel("PACF Value", id = "pacfvalbs", dataTableOutput(outputId = "pacfval"))
+              ),
               value = 2)),
+          div(class = "busy",
+              p("Calculation in progress ..."),
+              img(src="ajaxloaderq.gif")
+          ),
           value = 2),
         tabPanel(
           title = "Estimation",
           helpText("Estimate the identified model of the data.", br(), br()),
           verbatimTextOutput(
             outputId = "est"),
-          actionButton("addModel", "Add model for comparison"),
+          actionButton("addModel", "Add this model for comparison"),br(),br(),
+          helpText("Choose criteria for selected the best model from table below :", br()),
+          #verbatimTextOutput("modeldebug"),
+          selectInput(
+            inputId = "modelterbaik",
+            label = "Best model criteria",
+            choices = list(
+              "Choose By System" = "bysystem",
+              "aicc" = "aicc",
+              "aic" = "aic",
+              "bic" = "bic",
+              "RMSE" = 2,
+              "MAE" = 3,
+              "MAPE" =5,
+              "MASE" = 6
+            ),
+            selected = "bysystem"
+          ),
           htmlOutput(outputId = "modeltable"),
           value = 3),
         tabPanel(
@@ -316,6 +325,16 @@ output$autoarima <- renderUI ({
           tabsetPanel(
             id = "forecasttab",
             tabPanel(
+              title = "Out-of sample forecast",
+              plotOutput(outputId = "outsampleplot"),
+              
+              verbatimTextOutput("outsamplevalue1"),
+              verbatimTextOutput("testsetvalue"),
+              
+              verbatimTextOutput(outputId = "outsamplevalue"),
+              value = 3
+            ),
+            tabPanel(
               title = "Forecastplot",
               plotOutput(outputId = "forecastplot"),
               verbatimTextOutput(outputId = "forecastvalue"),
@@ -328,6 +347,11 @@ output$autoarima <- renderUI ({
               value = 2)),
           value = 5
         )
+        #         ,
+        #         tabPanel(
+        #           title = "Data Table",
+        #           dataTableOutput(outputId = "data.table1"), 
+        #           value = 6)
       )
     )
   )
@@ -336,18 +360,31 @@ output$autoarima <- renderUI ({
 # conversi data ke ts object dan mengambil variable yang dibutuhkan
 getdata_ts <- reactive({
   if(is.null(input$frequency) || is.null(input$date) || is.null(input$arima_var1)) return()
-  else{
-    dat <- ts(getdata(), frequency = nilaiTabel[["frequency"]], start=c(nilaiTabel[["start"]],1))
-    return(dat[,as.character(input$arima_var1)])
-  }
+  isolate({
+    if(is.null(input$frequency) || is.null(input$date) || is.null(input$arima_var1)){
+      dat <- ts(getdata(), frequency = nilaiTabel[["frequency"]], start=c(nilaiTabel[["start"]],1))
+      #dat <- window(dat, end= c(2013,12))# tambahan 7 Agustus, untuk mengecek in sample
+      return(dat[,as.character(input$arima_var1)])
+    }else{
+      dat <- ts(getdata(), frequency = as.numeric(input$frequency), start=c(input$date,1))
+      return(dat[,as.character(input$arima_var1)])
+    }
+  })
 })
 
 get_data <- reactive({
   if(is.null(input$frequency) || is.null(input$date) || is.null(input$arima_var1)) return()
-  else{
+  isolate({
     return (getdata()[,as.character(input$arima_var1)])
-  }
+  })
 })
+
+# mengambil jumlah observasi
+jumlahdata <- function(){
+  isolate({
+    return(length(get_data()))
+  })
+}
 
 ######################################################
 ## Bagian perhitungan
@@ -384,6 +421,97 @@ get_data <- reactive({
 #   })
 # })
 
+# memberi tanggal pada dataset
+dataset <- reactive({
+  val <- as.numeric(get_data())
+  date <- seq(as.Date("2009/01/1"), 
+              as.Date(paste("2014/",06,"/1", sep = "")), 
+              by = "1 months")
+  data <- data.frame(Value = val, 
+                     Date = date)
+  return(data)
+})
+
+# membuat dataset menjadi data.frame agar bisa ditampilkan di dataTable format
+dataframe <- reactive({
+  #a <- as.matrix(sim.ts)
+  Months <- c("Jan", "Feb", "Mar", "Apr", "May", 
+              "Jun", "Jul", "Aug", "Sep", "Oct", 
+              "Nov", "Dec")
+  b <- rep(Months, floor(length(dataset()$Value)/12))
+  c <- as.character(c(b, Months[1:(length(dataset()$Value) %% 12)]))
+  aa <- data.frame(dataset()$Value,c)
+  
+  Jan <- Feb <- Mar <- Apr <- May <- Jun <- Jul <- Aug <- Sep <- Oct <- Nov <- Dec <- numeric()
+  for(i in 1:nrow(aa)){
+    if(aa[i,2] == "Jan"){
+      Jan[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Feb"){
+      Feb[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Mar"){
+      Mar[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Apr"){
+      Apr[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "May"){
+      May[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Jun"){
+      Jun[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Jul"){
+      Jul[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Aug"){
+      Aug[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Sep"){
+      Sep[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Oct"){
+      Oct[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Nov"){
+      Nov[i] <- aa[i,1]
+    }
+    if(aa[i,2] == "Dec"){
+      Dec[i] <- aa[i,1]
+    }
+  }
+  bb <- list("Jan" = Jan[complete.cases(Jan)],
+             "Feb" = Feb[complete.cases(Feb)],
+             "Mar" = Mar[complete.cases(Mar)],
+             "Apr" = Apr[complete.cases(Apr)],
+             "May" = May[complete.cases(May)],
+             "Jun" = Jun[complete.cases(Jun)],
+             "Jul" = Jul[complete.cases(Jul)],
+             "Aug" = Aug[complete.cases(Aug)],
+             "Sep" = Sep[complete.cases(Sep)],
+             "Oct" = Oct[complete.cases(Oct)],
+             "Nov" = Nov[complete.cases(Nov)],
+             "Dec" = Dec[complete.cases(Dec)])
+  for(i in 1:length(bb)){
+    if(max(sapply(bb, length)) > length(bb[[i]])){
+      bb[[i]] <- c(bb[[i]],NA)
+    }
+  }
+  
+  kk <- as.data.frame(bb)
+  cc <- numeric()
+  for(i in 1:6){
+    cc[i] <- 2008 + i
+  }
+  kk <- data.frame(Year = cc, kk)
+  return(kk)
+})
+
+output$data.table1 <- renderDataTable({
+  dataframe()
+})
+
 # menampilkan data time series awal
 output$tampil_ts <- renderPrint({
   if(is.null(input$arima_var1) || is.null(input$frequency) || is.null(input$date))  return ()
@@ -391,9 +519,11 @@ output$tampil_ts <- renderPrint({
     mulai <- as.numeric(input$date)
     nilaiTabel[["start"]] <- mulai
     nilaiTabel[["frequency"]] <- as.numeric(input$frequency)
-    ts(data = get_data(), frequency = as.numeric(input$frequency), start = c(input$date,1))
+    message <- ts(data = get_data(), frequency = as.numeric(input$frequency), start = c(input$date,1))
+    message
   })
 })
+
 
 # menampilkan training set
 output$trainingSet <- renderPrint({
@@ -404,10 +534,13 @@ output$trainingSet <- renderPrint({
 output$testSet <- renderPrint({
   window(getdata_ts(), start = c(input$endYear, input$endMonth+1))
 })
+
 # plot data awal
 output$arimaplot <- renderPlot({
   par(mfcol = c(1,1), mar = c(5,4,1,2))
-  plot(getdata_ts())
+  data <- getdata_ts()
+  names(data) <- "ini contoh"
+  plot(data, ylab = "ini contoh")
 })
 
 
@@ -433,11 +566,19 @@ output$rooth1 <- renderText({
 
 # menghitung nilai trunc/lag adf
 observe({
-  if(is.null(input$uniroottest)) return()
+  if(is.null(input$uniroottest) || is.null(input$arima_var1)) return()
   isolate({
     k <- trunc((length(getdata_ts())-1)^(1/3))
     updateNumericInput(session, inputId = "lagdf", value = k) #(length(getdata_ts())-1)^(1/3)
   })
+})
+
+# menampilkan pilihan jumlah traning set sesuai dengan
+observe({
+  if(identical(input$nav_fast, "ARIMA")){
+    k <- length(getdata_ts())
+    updateNumericInput(session, inputId = "trainobservation", value = k-0.04*k, max = k-1) 
+  }
 })
 
 # menampilkan hasil uji unit root
@@ -568,13 +709,35 @@ output$acf <- renderPlot({
 })
 
 # nilai acf
-output$acfval <- renderPrint({
+output$acfval <- renderDataTable({
+  d <- get_data()
   p <- acf(get_data(), lag.max = input$lagdat, conf.level = (input$confval/100),plot = FALSE )
   if(input$dfdat){
     d <- diff(get_data(), lag = 1, differences = as.numeric(input$dfd))
     p <- acf(d, lag.max  = input$lagdat, conf.level = (input$confval/100), plot = FALSE)
   }
-  print(p)
+  
+  p <- data.frame(p$lag,p$acf)
+  colnames(p) <- c("Lag", "ACF Value")
+  
+  # membuang nilai observasi 1
+  p <- p[-1,]
+  
+  # mencoba membuat perhitungan ljung box untuk setiap lag
+  
+  # array untuk menyimpan nilai ljung-box
+  lj <- array(NA, c(input$lagdat,2))
+  colnames(lj) <- c("Box-Ljung", "P-value")
+  
+  # fungsi mengisi nilai ljung-box
+  for(i in 1:input$lagdat){
+    lj[i,1] <- Box.test(d, lag = i, type = "Ljung-Box")$statistic
+    lj[i,2] <- Box.test(d, lag = i, type = "Ljung-Box")$p.value
+  }
+  
+  # menggabungkan nilai lag,acf,ljung-box, dan pvalue
+  p <- cbind(p,lj)
+  
 })
 
 # plot pacf
@@ -588,13 +751,30 @@ output$pacf <- renderPlot({
 })
 
 # nilai pacf
-output$pacfval <- renderPrint({
+output$pacfval <- renderDataTable({
+  d <- get_data()
   p <- pacf(get_data(), lag.max = input$lagdat, conf.level = (input$confval/100),plot = FALSE )
   if(input$dfdat){
     d <- diff(get_data(), lag = 1, differences = as.numeric(input$dfd))
     p <- pacf(d, lag.max = input$lagdat, conf.level = (input$confval/100), plot = FALSE)
   }
-  print(p)
+  p <- data.frame(p$lag,p$acf)
+  colnames(p) <- c("Lag", "PACF Value")
+  
+  # mencoba membuat perhitungan ljung box untuk setiap lag
+  
+  # array untuk menyimpan nilai ljung-box
+  lj <- array(NA, c(input$lagdat,2))
+  colnames(lj) <- c("Box-Ljung", "P-value")
+  
+  # fungsi mengisi nilai ljung-box
+  for(i in 1:input$lagdat){
+    lj[i,1] <- Box.test(d, lag = i, type = "Ljung-Box")$statistic
+    lj[i,2] <- Box.test(d, lag = i, type = "Ljung-Box")$p.value
+  }
+  
+  # menggabungkan nilai lag,acf,ljung-box, dan pvalue
+  p <- cbind(p,lj)
 })
 
 # plot setelah dilakukan differencing
@@ -619,6 +799,7 @@ estimate.auto <- reactive({
   if(as.numeric(input$methods) == 2){
     k <- Arima(getdata_ts(), order = c(input$ar, input$df, input$ma), include.drift = TRUE)
   }
+  
   return(k)
   #})
 })
@@ -628,12 +809,11 @@ output$est <- renderPrint({
   estimate.auto()
 })
 
-# menampilkan tabel dari beberapa model 
-output$modeltable <- renderGvis({
-  if(is.null(input$addModel) || input$addModel == 0) return()
-  
-  isolate({
-    fit <- estimate.auto()
+# fungsi untuk mengolah data untuk ditampilkan di tabel
+olahdata <- reactive({
+  arrayterbaik()
+  for(i in 1:length(values$modellist)){
+    fit <- values$modellist[[i]]
     sum <- summary(fit)
     order <- fit$arma[c(1,6,2,3,7,4,5)]
     result <- paste("ARIMA(",order[1],",",order[2],",",order[3],")",sep="")
@@ -652,28 +832,156 @@ output$modeltable <- renderGvis({
     data <- data.frame(result, fit$aic, fit$aicc, fit$bic, sum[2], sum[3], sum[5], sum[6])
     colnames(data) <- c("ARIMA MODEL", "AIC", "AICc", "BIC", "RMSE", "MAE", "MAPE", "MASE")
     
-    nilaiTabel[["tmp"]] <- rbind(nilaiTabel[["tmp"]], data)
+    nilaiTabel[["tmp"]] <- unique(rbind(nilaiTabel[["tmp"]], data))
     
-    colnames(nilaiTabel[["tmp"]]) <- c("ARIMA MODEL", "AIC", "AICc", "BIC", "RMSE", "MAE", "MAPE", "MASE")  
+    colnames(nilaiTabel[["tmp"]]) <- c("ARIMA MODEL", "AIC", "AICc", "BIC", "RMSE", "MAE", "MAPE", "MASE")
+  } 
+})
+
+# mengisi data ke array penampung model terbaik
+arrayterbaik <- reactive({
+  
+  if(length(values$modellist ) == 0){
+    values$modellist[[1]] <- estimate.auto()
+    values$modellist[[2]] <- auto.arima(getdata_ts(), ic = "aicc", seasonal = F, stepwise = F)
+    values$modellist[[3]] <- auto.arima(getdata_ts(), ic = "aic", seasonal = F, stepwise = F)
+    values$modellist[[4]] <- auto.arima(getdata_ts(), ic = "bic", seasonal = F, stepwise = F)
+  }else{
+    values$modellist[[length(values$modellist)+1]] <- estimate.auto()
+  } 
+  
+})
+
+# membersihkan semua array jika diload data baru
+observe ({
+  if(is.null(input$datasets)) return()
+  input$datasets
+  isolate({
+    nilaiTabel[["tmp"]] <- data.frame()
+    values$modellist <- NULL
+  })
+})
+
+
+# menampilkan tabel dari beberapa model 
+output$modeltable <- renderGvis({
+  if(length(nilaiTabel[["tmp"]]) == 0){
+    olahdata()
+    gvisTable(nilaiTabel[["tmp"]], options = list(width = 1000))
+  }
+  if(is.null(input$addModel)) return()
+  isolate({
+    olahdata()
     gvisTable(nilaiTabel[["tmp"]], options = list(width = 1000))
   })
 })
 
+#menampilkan model hanya untuk debugging
+output$modeldebug <- renderPrint({
+  if(length(values[["modellist"]]) == 0 || is.null(values[["modellist"]])) return()
+  terbaik()
+})
+
+# memilih model terbaik berdasarkan kriteria tertentu
+terbaik <- reactive({  
+  if(length(values[["modellist"]]) == 0 || is.null(values[["modellist"]])) return(estimate.auto())
+  kriteria = as.character(input$modelterbaik)
+  if(kriteria == "aic" || kriteria == "aicc" || kriteria == "bic"){
+    model = values$modellist[[1]]
+    min <- as.numeric(values$modellist[[1]][kriteria]) 
+    for(i in 1:length(values$modellist)){
+      now = as.numeric(values$modellist[[i]][kriteria])
+      if(now < min){
+        model = values$modellist[[i]] 
+        min = now
+      }
+    }
+  }
+  # menghitung semua kemungkinan model terbaik dari fungsi auto.arima
+  else if(kriteria == "bysystem"){
+    model = values$modellist[[1]]
+    min = bantuterbaik(fit = model)
+    for(i in 1:length(values$modellist)){
+      now = bantuterbaik(fit = values$modellist[[i]])
+      if(now < min){
+        model = values$modellist[[i]] 
+        min = now
+      }
+    }
+  }
+  else{
+    model = values$modellist[[1]]
+    summodel = summary(values$modellist[[1]])
+    min <- summodel[as.numeric(input$modelterbaik)]
+    for(i in 1:length(values$modellist)){
+      bantu = summary(values$modellist[[i]])
+      now = bantu[as.numeric(input$modelterbaik)]
+      if (now < min){
+        model = values$modellist[[i]]
+        min = now
+      }
+    }
+  }
+  return(model)
+})
+
+# membantu menghitung out of sample sebagai kriteria model terbaik dari sistem
+bantuterbaik <- function(fit = NULL)({
+  
+  train <- gettrainingset()
+  
+  hasil = 0
+  seasonal = FALSE
+  nonzeromean = TRUE
+  withdrift = FALSE
+  
+  order <- fit$arma[c(1,6,2,3,7,4,5)]
+  if(order[7]>1 & sum(order[4:6]) > 0){    
+    seasonal = TRUE 
+  }
+  if(is.element("constant",names(fit$coef)) | is.element("intercept",names(fit$coef))){
+    nonzeromean = TRUE
+  }
+  else if(is.element("drift",names(fit$coef))){
+    withdrift = TRUE
+  }
+  else if(order[2]==0 & order[5]==0){
+    nonzeromean = FALSE
+  }
+  else{
+    
+  }
+  
+  if(seasonal == TRUE){
+    hasil <- Arima(train, order = c(order[1],order[2], order[3]),seasonal = c(order[4],order[5],order[6]), include.drift = withdrift, include.mean = nonzeromean)
+  }else{
+    hasil <- Arima(train, order = c(order[1],order[2], order[3]), include.drift = withdrift, include.mean = nonzeromean)
+  }
+  
+  testset <- gettestset()
+  
+  fcastout <- forecast(hasil, length(testset))
+  
+  acc <- accuracy(fcastout, testset)[2,8]
+  return(acc)
+  
+})
+
 # hasil uji dalam bentuk statistik
 output$diagx2 <- renderPrint({
-  m <- Box.test(estimate.auto()$residuals, type = input$test)
+  m <- Box.test(terbaik()$residuals, type = input$test)
   as.numeric(as.matrix(m$statistic))
 })
 
 # hasil uji dalam bentuk p-value
 output$diagpv <- renderPrint({
-  m <- Box.test(estimate.auto()$residuals, type = input$test)
+  m <- Box.test(terbaik()$residuals, type = input$test)
   as.numeric(as.matrix(m$p.value))
 })
 
 # keputusan dari uji diagnostic (decision)
 output$diagdc <- renderPrint({
-  m <- Box.test(estimate.auto()$residuals, type = input$test)
+  m <- Box.test(terbaik()$residuals, type = input$test)
   j <- as.numeric(as.matrix(m$p.value))
   if(j >= 0.05){
     print("Do not reject the null hypothesis, since the p-value is greater than 0.05")
@@ -685,7 +993,7 @@ output$diagdc <- renderPrint({
 
 # kesimpulan dari uji diagnostic (conclusion)
 output$diagcn <- renderPrint({
-  m <- Box.test(estimate.auto()$residuals, type = input$test)
+  m <- Box.test(terbaik()$residuals, type = input$test)
   j <- as.numeric(as.matrix(m$p.value))
   if(j >= 0.05){
     print("Therefore, we do not have enough evidence to reject the null hypothesis. And thus, the residuals of the model exhibits randomness")
@@ -697,37 +1005,150 @@ output$diagcn <- renderPrint({
 
 # plot residual
 output$resplot <- renderPlot({
-  p <- tsdisplay(estimate.auto()$residuals)
+  p <- tsdisplay(terbaik()$residuals)
   print(p)
 })
 
 # output nilai peramalan terhadap fitted value
 output$fitplot <- renderPlot({
-  fit <- estimate.auto()
+  fit <- terbaik()
   plot(fit$x,col="red")
   lines(fitted.Arima(fit),col="blue")
 })
 
+# perhitungan out-of sample
+fcastout <- reactive({  
+  
+  train <- gettrainingset()
+  
+  hasil = 0
+  seasonal = FALSE
+  nonzeromean = TRUE
+  withdrift = FALSE
+  
+  fit <- terbaik()
+  order <- fit$arma[c(1,6,2,3,7,4,5)]
+  result <- paste("ARIMA(",order[1],",",order[2],",",order[3],")",sep="")
+  if(order[7]>1 & sum(order[4:6]) > 0){    
+    result <- paste(result,"(",order[4],",",order[5],",",order[6],")[",order[7],"]",sep="")
+    seasonal = TRUE 
+  }
+  if(is.element("constant",names(fit$coef)) | is.element("intercept",names(fit$coef))){
+    result <- paste(result,"with non-zero mean")
+    nonzeromean = TRUE
+  }
+  else if(is.element("drift",names(fit$coef))){
+    result <- paste(result,"with drift        ")
+    withdrift = TRUE
+  }
+  else if(order[2]==0 & order[5]==0){
+    result <- paste(result,"with zero mean    ")
+    nonzeromean = FALSE
+  }
+  else{
+    result <- paste(result,"                  ")
+  }
+  
+  if(seasonal == TRUE){
+    hasil <- Arima(train, order = c(order[1],order[2], order[3]),seasonal = c(order[4],order[5],order[6]), include.drift = withdrift, include.mean = nonzeromean)
+  }else{
+    hasil <- Arima(train, order = c(order[1],order[2], order[3]), include.drift = withdrift, include.mean = nonzeromean)
+  }
+  
+  testset <- gettestset()
+  
+  return(train_forecast <- forecast(hasil, h  = length(testset)))
+  
+})
+
+#mengambil nilai test set
+gettestset <- reactive({
+  if(is.null(input$trainobservation)){
+    testset <- as.zoo(getdata_ts())
+    n <- length(testset)
+    testset <- tail(testset,  n = 0.04*n)
+    testset <- as.ts(testset)
+  }else{
+    testset <- as.zoo(getdata_ts())
+    n <- length(testset)
+    testset <- tail(testset,  n = n - input$trainobservation)
+    testset <- as.ts(testset)
+  }
+  #   testset <- window(getdata_ts(), start = c(2014, 1))
+  return(testset)
+})
+
+#mengambil nilai traning set
+gettrainingset <- reactive({
+  if(is.null(input$trainobservation)){
+    trainingset <- as.zoo(getdata_ts())
+    n <- length(trainingset)
+    trainingset <- head(trainingset, n = n-0.04*n)
+    trainingset <- as.ts(trainingset)
+  }else{
+    trainingset <- as.zoo(getdata_ts())
+    n <- length(trainingset)
+    trainingset <- head(trainingset, n = input$trainobservation)
+    trainingset <- as.ts(trainingset)
+  }
+  #   traningset <- window(getdata_ts(), end = c(2013, 12))
+  return(trainingset)
+})
+
+# output out of sample forecast
+output$outsampleplot <- renderPlot({
+  
+  p <- plot(fcastout(), include = 0)
+  lines(gettestset(), col = "red")
+  
+})
+
+# output nilai akurasi outsample forecast
+output$outsamplevalue <- renderPrint({
+  testset <- gettestset()
+  accuracy(fcastout(), testset)[2,]
+})
+
+# output nilai forecast outofsample
+output$outsamplevalue1 <- renderPrint({
+  p <- fcastout()
+  print(p)
+})
+
+# menampilkan nilai test set
+output$testsetvalue <- renderPrint({
+  gettestset()
+})
+
 # output plot forecast
 output$forecastplot <- renderPlot({
-  forecast1 <- forecast.Arima(estimate.auto(), h=input$period)
+  if(is.null(terbaik())){
+    forecast1 <- forecast.Arima(estimate.auto(), h=input$period)  
+  }
+  else{
+    forecast1 <- forecast.Arima(terbaik(), h=input$period)
+  }
   p <- plot.forecast(forecast1)
-  print(p)
 })
 
 # output nilai forecast
 output$forecastvalue <- renderPrint({
-  forecast1 <- forecast.Arima(estimate.auto(), h=input$period)
-  print(forecast1)
+  if(is.null(terbaik())){
+    forecast1 <- forecast.Arima(estimate.auto(), h=input$period)  
+  }
+  else{
+    forecast1 <- forecast.Arima(terbaik(), h=input$period)
+  }
+  forecast1
 })
 
 #######################################################
 # fungsi untuk plot acf dan pacf menggunakan ggplot2
 
 qacf <- function(x, conf.level = 0.95, max.lag = NULL,
-                 min.lag = 0) {
+                 min.lag = 1) {
   ciline <- qnorm((1 - conf.level)/2)/sqrt(length(x))
-  bacf <- acf(x, plot = FALSE, lag.max = max.lag)
+  bacf <- Acf(x, plot = FALSE, lag.max = max.lag)
   bacfdf <- with(bacf, data.frame(lag, acf))
   if (min.lag > 0) {
     bacfdf <- bacfdf[-seq(1, min.lag), ]
@@ -791,7 +1212,7 @@ qpacf <- function(x, conf.level = 0.95, max.lag = NULL,
   q <- qplot(
     lag, acf, data = bacfdf, geom = "bar",
     stat = "identity", position = "identity",
-    ylab = "Autocorrelation",
+    ylab = "Partial Correlation",
     fill = factor(significant))
   q <- q + geom_hline(
     yintercept = -ciline,
@@ -835,6 +1256,11 @@ qpacf <- function(x, conf.level = 0.95, max.lag = NULL,
 output$namadata <- renderText({
   nama <- paste0("Data: ", input$datasets)
   nama
+})
+
+# mengisi kemungkinan model terbaik dari auto.arima
+isiarrayterbaik <- reactive({
+  values
 })
 
 # bagian report, save html, pdf word dll.

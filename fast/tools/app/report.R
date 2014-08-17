@@ -53,7 +53,7 @@ output$report <- renderUI({
 
 # observe({
 #   if(is.null(input$renameButton) || input$renameButton == 0) return()
-#   updateTabsetPanel(session, "nav_radiant", selected = "Report") 
+#   updateTabsetPanel(session, "nav_fast", selected = "Report") 
 # })
 
 output$rmd_knitDoc <- renderUI({
@@ -90,7 +90,7 @@ output$saveRmd <- downloadHandler(
 observe({
 
   # Useful to jump to reporting tab on refresh when testing
-  # updateTabsetPanel(session, "nav_radiant", selected = "Report") 
+  # updateTabsetPanel(session, "nav_fast", selected = "Report") 
 
   # loading r-code from disk
   inFile <- input$loadRmd
@@ -141,7 +141,7 @@ updateReportFun <- function(cmd) {
   }
 
   # move to the report panel
-  updateTabsetPanel(session, "nav_radiant", selected = "Report") 
+  updateTabsetPanel(session, "nav_fast", selected = "Report") 
 }
 
 
